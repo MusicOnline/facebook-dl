@@ -3,6 +3,13 @@
 # facebook-dl [input_file] [output_file]
 
 # Download the best quality video from a Facebook HTML file
+# Ensure that the page only has one video, otherwise the wrong video will be selected
+# Select "Copy URL" in the three dots menu to get the /videos/ link from a /watch/ page
+# The user must download the HTML file themselves
+# because Facebook checks for more than user agent to determine real users
+
+# Good URL: https://www.facebook.com/123456789/videos/123456789/
+# Bad URL: https://www.facebook.com/watch/?v=123456789
 
 # input_file: path to the HTML file [Default: index.html]
 # output_file: path to the output MP4 file [Default: output.mp4]
@@ -31,7 +38,7 @@ else
 fi
 
 # Get highest video quality
-highest_quality=$(grep -oP $QUALITY_PATTERN $html_path | sort -r | head -1)
+highest_quality=$(grep -oP $QUALITY_PATTERN $html_path | sort -nr | head -1)
 echo Best quality: ${highest_quality}p
 
 clean_url() {
@@ -45,6 +52,8 @@ clean_url() {
 video_url_pattern="(?<=FBQualityLabel=\\\\\"${highest_quality}p\\\\\">\\\\u003CBaseURL>)(.+?)(?=\\\\u003C\\\\\/BaseURL>)"
 video_url=$(grep -oP $video_url_pattern $html_path)
 video_url=$(clean_url $video_url)
+echo ""
+echo Video URL: $video_url
 
 # Get the substring from FBQualityLabel to <BaseURL> right before the audio URL
 audio_url_prefix_pattern="FBQualityLabel=\\\\\"${highest_quality}p\\\\\">\\\\u003CBaseURL>.+?\\\\u003C\\\\\/BaseURL>.+?\\/>\\\\u003CBaseURL>"
@@ -60,9 +69,15 @@ audio_url_prefix=${audio_url_prefix// /\\s} # (space) -> \s
 audio_url_pattern="(?<=${audio_url_prefix}).+?(?=\\\\u003C\\\\\/BaseURL>)"
 audio_url=$(grep -oP $audio_url_pattern $html_path)
 audio_url=$(clean_url $audio_url)
+echo ""
+echo Audio URL: $audio_url
 
-wget -nv $video_url -O ._temp_video_stream
-wget -nv $audio_url -O ._temp_audio_stream
+echo ""
+printf "=%.0s" {1..70}
+echo ""
+
+wget $video_url -O ._temp_video_stream
+wget $audio_url -O ._temp_audio_stream
 
 ffmpeg -hide_banner -loglevel warning \
     -i ._temp_video_stream -i ._temp_audio_stream \
