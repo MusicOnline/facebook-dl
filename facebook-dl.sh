@@ -8,9 +8,6 @@
 # The user must download the HTML file themselves
 # because Facebook checks for more than user agent to determine real users
 
-# Good URL: https://www.facebook.com/123456789/videos/123456789/
-# Bad URL: https://www.facebook.com/watch/?v=123456789
-
 # input_file: path to the HTML file [Default: index.html]
 # output_file: path to the output MP4 file [Default: output.mp4]
 
@@ -37,8 +34,10 @@ else
     fi
 fi
 
+first_video_line=$(grep -P $QUALITY_PATTERN $html_path | head -1)
+
 # Get highest video quality
-highest_quality=$(grep -oP $QUALITY_PATTERN $html_path | sort -nr | head -1)
+highest_quality=$(grep -oP $QUALITY_PATTERN <<< $first_video_line | sort -nr | head -1)
 echo Best quality: ${highest_quality}p
 
 clean_url() {
@@ -50,14 +49,14 @@ clean_url() {
 
 # Get video URL
 video_url_pattern="(?<=FBQualityLabel=\\\\\"${highest_quality}p\\\\\">\\\\u003CBaseURL>)(.+?)(?=\\\\u003C\\\\\/BaseURL>)"
-video_url=$(grep -oP $video_url_pattern $html_path)
+video_url=$(grep -oP $video_url_pattern <<< $first_video_line | head -1)
 video_url=$(clean_url $video_url)
 echo ""
 echo Video URL: $video_url
 
 # Get the substring from FBQualityLabel to <BaseURL> right before the audio URL
 audio_url_prefix_pattern="FBQualityLabel=\\\\\"${highest_quality}p\\\\\">\\\\u003CBaseURL>.+?\\\\u003C\\\\\/BaseURL>.+?\\/>\\\\u003CBaseURL>"
-audio_url_prefix=$(grep -oP $audio_url_prefix_pattern $html_path)
+audio_url_prefix=$(grep -oP $audio_url_prefix_pattern <<< $first_video_line | head -1)
 
 # The following replacements are performed to use it as part of a regex pattern
 audio_url_prefix=${audio_url_prefix//\\/\\\\} # \ -> \\ (escape backslashes)
@@ -67,7 +66,7 @@ audio_url_prefix=${audio_url_prefix// /\\s} # (space) -> \s
 
 # Get audio url
 audio_url_pattern="(?<=${audio_url_prefix}).+?(?=\\\\u003C\\\\\/BaseURL>)"
-audio_url=$(grep -oP $audio_url_pattern $html_path)
+audio_url=$(grep -oP $audio_url_pattern <<< $first_video_line)
 audio_url=$(clean_url $audio_url)
 echo ""
 echo Audio URL: $audio_url
